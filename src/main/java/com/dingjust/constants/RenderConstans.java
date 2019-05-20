@@ -10,7 +10,11 @@ public class RenderConstans {
     public static final String IMAGES_ERVER = "imageserver";
     public static final String SIGNTURE = "SIGNTURE";
     public static final String SIGNTURE_FILE = "signture";
+    public static final String PRINTING_FILE = "printing";
+    public static final String SOURCE = "source";
+    public static final String TARGET = "target";
     public static final String SHARE = "share";
+    public static final String FILE = "file";
     public static final String QRCODE = "qrcode";
     public static final String IMAGE = "image";
     public static final String IMAGE_FILE = "images";
@@ -33,6 +37,8 @@ public class RenderConstans {
     public static final String LOGO = "logo";
     public static final String VALUE = "value";
     public static final String NAME = "name";
+    public static final String TYPE = "type";
+    public static final String PRINTING = "PRINTING";
     public static final int STATUS_200 = 200;
     public static final int STATUS_500 = 500;
     //symbol

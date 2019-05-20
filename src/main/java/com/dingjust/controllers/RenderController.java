@@ -49,35 +49,63 @@ public class RenderController {
     public JSONObject renderImage(@DefaultValue("1.0") @QueryParam("scale") double scale, JSONObject inJson) {
         JSONObject outJson = new JSONObject();
         int render = RenderConstans.STATUS_200;
+        String imgUrl = "";
         try {
             String productCode = inJson.getString(RenderConstans.CODE);
             String view = inJson.getString(RenderConstans.VIEW);
             List<DrapeData> parts = FileUtils.readParts(inJson);
+            //检查烫印
+            DrapeData printingData = checkPrinting(parts);
             File imageFile = FileUtils.getMD5Image(productCode, view, parts, scale);
             if (imageFile.exists()) {//已经渲染过
-                outJson.put(RenderConstans.URL, FileUtils.formatImageUrl(imageFile));
+                imgUrl = FileUtils.formatImageUrl(imageFile);
             } else {//未渲染
                 //测试
                 outJson.put(RenderConstans.IMAGE, imageFile.toURI().toString());
                 //判断比例
                 if (scale == 1) {
-                    outJson.put(RenderConstans.URL, FileUtils.formatImageUrl(ImageUtils.mergeImage(DrapeUtils.renderAll(FileUtils.createDrapeData(productCode, view, parts)), imageFile)));
+                    imgUrl = FileUtils.formatImageUrl(ImageUtils.mergeImage(DrapeUtils.renderAll(FileUtils.createDrapeData(productCode, view, parts)), imageFile));
                 } else {
                     File renderedImageFile = FileUtils.getMD5Image(productCode, view, parts, 1.0);
                     if (renderedImageFile.exists()) {//原图已渲染
-                        outJson.put(RenderConstans.URL, FileUtils.formatImageUrl(ImageUtils.compressImage(renderedImageFile, imageFile, scale)));
+                        imgUrl = FileUtils.formatImageUrl(ImageUtils.compressImage(renderedImageFile, imageFile, scale));
                     } else {//原图未渲染
-                        outJson.put(RenderConstans.URL, FileUtils.formatImageUrl(ImageUtils.compressImage(ImageUtils.mergeImage(DrapeUtils.renderAll(FileUtils.createDrapeData(productCode, view, parts)), renderedImageFile), imageFile, scale)));
+                        imgUrl = FileUtils.formatImageUrl(ImageUtils.compressImage(ImageUtils.mergeImage(DrapeUtils.renderAll(FileUtils.createDrapeData(productCode, view, parts)), renderedImageFile), imageFile, scale));
                     }
                 }
+            }
+            //渲染烫印
+            if (null != printingData && imageFile.exists()) {
+                imgUrl = FileUtils.formatImageUrl(PrintingUtils.printing(imgUrl, imageFile, printingData));
             }
         } catch (Exception e) {
             render = RenderConstans.STATUS_500;
             outJson.put(RenderConstans.MSG, e.getMessage());
-            outJson.put(RenderConstans.URL, RenderConstans.NOT_FOUND_JPG);
+            imgUrl = RenderConstans.NOT_FOUND_JPG;
+            e.printStackTrace();
         }
+        outJson.put(RenderConstans.URL, imgUrl);
         outJson.put(RenderConstans.CODE, render);
         return outJson;
+    }
+
+    /**
+     * 将烫印部件抽出,单独处理
+     *
+     * @param parts
+     * @return
+     */
+    private DrapeData checkPrinting(List<DrapeData> parts) {
+        DrapeData result = null;
+        for (DrapeData data : parts) {
+            if (RenderConstans.PRINTING.equals(data.getType())) {
+                result = data;
+            }
+        }
+        if (null != result) {
+            parts.remove(result);
+        }
+        return result;
     }
 
     /**
@@ -252,6 +280,46 @@ public class RenderController {
             outJson.put(RenderConstans.URL, RenderConstans.IMAGES_ERVER + RenderConstans.SLASH + FileUtils.formatImageUrl(imageFile));
         } catch (Exception e) {
             outJson.put(RenderConstans.MSG, e.getMessage());
+        } finally {
+            if (null != outImgStream) {
+                outImgStream.close();
+            }
+        }
+        return outJson;
+    }
+
+    /**
+     * 上传图片
+     *
+     * @param request
+     * @return
+     * @throws IOException
+     */
+    @POST
+    @Path("uploadImage")
+    @Consumes(MediaType.MULTIPART_FORM_DATA)
+    @Produces(MediaType.APPLICATION_JSON)
+    public JSONObject uploadImage(@Context HttpServletRequest request) throws IOException {
+        FileOutputStream outImgStream = null;
+        JSONObject outJson = new JSONObject();
+        try {
+            FileItemFactory factory = new DiskFileItemFactory();
+            ServletFileUpload upload = new ServletFileUpload(factory);
+            Map<String, List<FileItem>> items = upload.parseParameterMap(request);
+            FileItem image = items.get(RenderConstans.IMAGE).get(0);
+            String code = items.get(RenderConstans.CODE).get(0).getString();
+            String file = items.get(RenderConstans.FILE).get(0).getString();
+            //图片
+            String imagePath = new StringBuilder(RenderConstans.BASE_PATH)
+                    .append(RenderConstans.SLASH).append(RenderConstans._UI).append(RenderConstans.SLASH).append(file).append(RenderConstans.SLASH)
+                    .append(code).append(RenderConstans.POINT).append(RenderConstans.PNG).toString();
+            File imageFile = new File(imagePath);
+            outImgStream = new FileOutputStream(imageFile);
+            ImageIO.write(ImageIO.read(image.getInputStream()), RenderConstans.PNG, outImgStream);
+            outJson.put(RenderConstans.URL, FileUtils.formatImageUrl(imageFile));
+        } catch (Exception e) {
+            outJson.put(RenderConstans.MSG, e.getMessage());
+            e.printStackTrace();
         } finally {
             if (null != outImgStream) {
                 outImgStream.close();

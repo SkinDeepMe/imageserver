@@ -95,6 +95,12 @@ public class FileUtils {
             JSONObject part = parts.getJSONObject((String) key);
             data.setDrapeName(part.getString(RenderConstans.CODE));
             data.setSort(part.getInt(RenderConstans.SORT));
+            if (part.containsKey(RenderConstans.TYPE)) {
+                data.setType(part.getString(RenderConstans.TYPE));
+            }
+            if (part.containsKey(RenderConstans.URL)) {
+                data.setUrl(part.getString(RenderConstans.URL));
+            }
             datas.add(data);
         }
         datas.sort(Comparator.comparingInt(DrapeData::getSort));

@@ -7,6 +7,8 @@ public class DrapeData {
     String view;
     String drapeName;
     String fabricName;
+    String type;
+    String url;
     int sort;
 
     public String getView() {
@@ -39,5 +41,21 @@ public class DrapeData {
 
     public void setSort(int sort) {
         this.sort = sort;
+    }
+
+    public String getType() {
+        return type;
+    }
+
+    public void setType(String type) {
+        this.type = type;
+    }
+
+    public String getUrl() {
+        return url;
+    }
+
+    public void setUrl(String url) {
+        this.url = url;
     }
 }
