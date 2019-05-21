@@ -57,6 +57,10 @@ public class PrintingUtils {
             int srcImgWidth = srcImg.getWidth(null);//获取底图的宽
             int srcImgHeight = srcImg.getHeight(null);//获取底图的高
             BufferedImage bufImg = new BufferedImage(srcImgWidth, srcImgHeight, BufferedImage.TYPE_INT_RGB);
+            Graphics2D g2d = bufImg.createGraphics();
+            bufImg = g2d.getDeviceConfiguration()
+                    .createCompatibleImage(srcImgWidth, srcImgHeight,
+                            Transparency.TRANSLUCENT);
             Graphics2D g = bufImg.createGraphics();
             g.drawImage(srcImg, 0, 0, srcImgWidth, srcImgHeight, null);
             //烫印图
