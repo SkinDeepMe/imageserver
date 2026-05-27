@@ -1,0 +1,83 @@
+diff --git a/src/main/java/com/dingjust/controllers/RenderController.java b/src/main/java/com/dingjust/controllers/RenderController.java
+index e5437b7..89578eb 100644
+--- a/src/main/java/com/dingjust/controllers/RenderController.java
++++ b/src/main/java/com/dingjust/controllers/RenderController.java
+@@ -5,6 +5,7 @@ import com.dingjust.datas.AbsPartData;
+ import com.dingjust.datas.DrapeData;
+ import com.dingjust.datas.PartData;
+ import com.dingjust.utils.*;
++import java.util.concurrent.locks.Lock;
+ import net.sf.json.JSONArray;
+ import net.sf.json.JSONObject;
+ import org.apache.commons.codec.digest.DigestUtils;
+@@ -50,6 +51,7 @@ public class RenderController {
+         JSONObject outJson = new JSONObject();
+         int render = RenderConstans.STATUS_200;
+         String imgUrl = "";
++        Lock lock = null;
+         try {
+             String productCode = inJson.getString(RenderConstans.CODE);
+             String view = inJson.getString(RenderConstans.VIEW);
+@@ -57,21 +59,37 @@ public class RenderController {
+             //检查烫印
+             DrapeData printingData = checkPrinting(parts);
+             File imageFile = FileUtils.getMD5Image(productCode, view, parts, scale);
+-            if (imageFile.exists()) {//已经渲染过
++            
++            // 先做一次无锁检查，如果文件已存在则直接返回
++            if (imageFile.exists()) {
+                 imgUrl = FileUtils.formatImageUrl(imageFile);
+-            } else {//未渲染
+-                //测试
+-                outJson.put(RenderConstans.IMAGE, imageFile.toURI().toString());
+-                //判断比例
+-                if (scale == 1) {
+-                    imgUrl = FileUtils.formatImageUrl(ImageUtils.mergeImage(DrapeUtils.renderAll(FileUtils.createDrapeData(productCode, view, parts)), imageFile));
+-                } else {
+-                    File renderedImageFile = FileUtils.getMD5Image(productCode, view, parts, 1.0);
+-                    if (renderedImageFile.exists()) {//原图已渲染
+-                        imgUrl = FileUtils.formatImageUrl(ImageUtils.compressImage(renderedImageFile, imageFile, scale));
+-                    } else {//原图未渲染
+-                        imgUrl = FileUtils.formatImageUrl(ImageUtils.compressImage(ImageUtils.mergeImage(DrapeUtils.renderAll(FileUtils.createDrapeData(productCode, view, parts)), renderedImageFile), imageFile, scale));
++            } else {
++                // 获取锁，防止并发重复生成
++                String lockKey = imageFile.getAbsolutePath();
++                lock = RenderLockManager.getLock(lockKey);
++                lock.lock();
++                try {
++                    // 双重检查：获取锁后再次检查文件是否已被其他线程生成
++                    if (imageFile.exists()) {
++                        imgUrl = FileUtils.formatImageUrl(imageFile);
++                    } else {
++                        //测试
++                        outJson.put(RenderConstans.IMAGE, imageFile.toURI().toString());
++                        //判断比例
++                        if (scale == 1) {
++                            imgUrl = FileUtils.formatImageUrl(ImageUtils.mergeImage(DrapeUtils.renderAll(FileUtils.createDrapeData(productCode, view, parts)), imageFile));
++                        } else {
++                            File renderedImageFile = FileUtils.getMD5Image(productCode, view, parts, 1.0);
++                            if (renderedImageFile.exists()) {//原图已渲染
++                                imgUrl = FileUtils.formatImageUrl(ImageUtils.compressImage(renderedImageFile, imageFile, scale));
++                            } else {//原图未渲染
++                                imgUrl = FileUtils.formatImageUrl(ImageUtils.compressImage(ImageUtils.mergeImage(DrapeUtils.renderAll(FileUtils.createDrapeData(productCode, view, parts)), renderedImageFile), imageFile, scale));
++                            }
++                        }
+                     }
++                } finally {
++                    lock.unlock();
++                    RenderLockManager.releaseLock(lockKey);
+                 }
+             }
+             //渲染烫印
+@@ -83,6 +101,11 @@ public class RenderController {
+             outJson.put(RenderConstans.MSG, e.getMessage());
+             imgUrl = RenderConstans.NOT_FOUND_JPG;
+             e.printStackTrace();
++        } finally {
++            // 确保锁被正确释放
++            if (lock != null && lock.tryLock()) {
++                lock.unlock();
++            }
+         }
+         outJson.put(RenderConstans.URL, imgUrl);
+         outJson.put(RenderConstans.CODE, render);
