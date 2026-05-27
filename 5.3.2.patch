@@ -1,0 +1,30 @@
+diff --git a/pom.xml b/pom.xml
+index 754eefe..aa79a24 100644
+--- a/pom.xml
++++ b/pom.xml
+@@ -17,6 +17,25 @@
+                     <target>1.8</target>
+                 </configuration>
+             </plugin>
++            <plugin>
++                <groupId>org.jacoco</groupId>
++                <artifactId>jacoco-maven-plugin</artifactId>
++                <version>0.8.7</version>
++                <executions>
++                    <execution>
++                        <goals>
++                            <goal>prepare-agent</goal>
++                        </goals>
++                    </execution>
++                    <execution>
++                        <id>report</id>
++                        <phase>test</phase>
++                        <goals>
++                            <goal>report</goal>
++                        </goals>
++                    </execution>
++                </executions>
++            </plugin>
+         </plugins>
+     </build>
+     <dependencies>
