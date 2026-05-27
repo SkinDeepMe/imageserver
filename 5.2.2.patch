@@ -1,0 +1,100 @@
+diff --git a/src/main/java/com/dingjust/controllers/RenderController.java b/src/main/java/com/dingjust/controllers/RenderController.java
+index e5437b7..ad8f0bf 100644
+--- a/src/main/java/com/dingjust/controllers/RenderController.java
++++ b/src/main/java/com/dingjust/controllers/RenderController.java
+@@ -62,15 +62,27 @@ public class RenderController {
+             } else {//未渲染
+                 //测试
+                 outJson.put(RenderConstans.IMAGE, imageFile.toURI().toString());
+-                //判断比例
+-                if (scale == 1) {
+-                    imgUrl = FileUtils.formatImageUrl(ImageUtils.mergeImage(DrapeUtils.renderAll(FileUtils.createDrapeData(productCode, view, parts)), imageFile));
+-                } else {
+-                    File renderedImageFile = FileUtils.getMD5Image(productCode, view, parts, 1.0);
+-                    if (renderedImageFile.exists()) {//原图已渲染
+-                        imgUrl = FileUtils.formatImageUrl(ImageUtils.compressImage(renderedImageFile, imageFile, scale));
+-                    } else {//原图未渲染
+-                        imgUrl = FileUtils.formatImageUrl(ImageUtils.compressImage(ImageUtils.mergeImage(DrapeUtils.renderAll(FileUtils.createDrapeData(productCode, view, parts)), renderedImageFile), imageFile, scale));
++                synchronized (imageFile.getAbsolutePath().intern()) {
++                    if (imageFile.exists()) {
++                        imgUrl = FileUtils.formatImageUrl(imageFile);
++                    } else {
++                        //判断比例
++                        if (scale == 1) {
++                            imgUrl = FileUtils.formatImageUrl(ImageUtils.mergeImage(DrapeUtils.renderAll(FileUtils.createDrapeData(productCode, view, parts)), imageFile));
++                        } else {
++                            File renderedImageFile = FileUtils.getMD5Image(productCode, view, parts, 1.0);
++                            if (renderedImageFile.exists()) {//原图已渲染
++                                imgUrl = FileUtils.formatImageUrl(ImageUtils.compressImage(renderedImageFile, imageFile, scale));
++                            } else {//原图未渲染
++                                synchronized (renderedImageFile.getAbsolutePath().intern()) {
++                                    if (renderedImageFile.exists()) {
++                                        imgUrl = FileUtils.formatImageUrl(ImageUtils.compressImage(renderedImageFile, imageFile, scale));
++                                    } else {
++                                        imgUrl = FileUtils.formatImageUrl(ImageUtils.compressImage(ImageUtils.mergeImage(DrapeUtils.renderAll(FileUtils.createDrapeData(productCode, view, parts)), renderedImageFile), imageFile, scale));
++                                    }
++                                }
++                            }
++                        }
+                     }
+                 }
+             }
+@@ -133,21 +145,27 @@ public class RenderController {
+             if (imageFile.exists()) {//已经渲染过
+                 outJson.put(RenderConstans.URL, FileUtils.formatImageUrl(imageFile));
+             } else {//未渲染
+-                String basePath = RenderConstans.BASE_PATH + RenderConstans.SLASH + RenderConstans._UI + RenderConstans.SLASH;
+-                if (!StringUtils.isEmpty(code) && !StringUtils.isEmpty(text) && !StringUtils.isEmpty(color) && !StringUtils.isEmpty(font)) {
+-                    File fontFile = new File(
+-                            new StringBuilder(basePath).append(RenderConstans.FONT_FILE).append(RenderConstans.SLASH).append(font).append(RenderConstans.TTF).toString()
+-                    );
+-                    Font fontStyle = FontUtils.getDefinedFont(fontFile, 48);
+-                    File sourceFile = new File(
+-                            new StringBuilder(basePath).append(RenderConstans.SIGNTURE_FILE).append(RenderConstans.SLASH).append(productCode).append(RenderConstans.SLASH).append(code).append(RenderConstans.POINT).append(RenderConstans.JPG).toString()
+-                    );
+-                    if (!sourceFile.exists()) {
+-                        throw new IllegalStateException("绣字源图片不存在:" + sourceFile.toString());
++                synchronized (imageFile.getAbsolutePath().intern()) {
++                    if (imageFile.exists()) {
++                        outJson.put(RenderConstans.URL, FileUtils.formatImageUrl(imageFile));
++                    } else {
++                        String basePath = RenderConstans.BASE_PATH + RenderConstans.SLASH + RenderConstans._UI + RenderConstans.SLASH;
++                        if (!StringUtils.isEmpty(code) && !StringUtils.isEmpty(text) && !StringUtils.isEmpty(color) && !StringUtils.isEmpty(font)) {
++                            File fontFile = new File(
++                                    new StringBuilder(basePath).append(RenderConstans.FONT_FILE).append(RenderConstans.SLASH).append(font).append(RenderConstans.TTF).toString()
++                            );
++                            Font fontStyle = FontUtils.getDefinedFont(fontFile, 48);
++                            File sourceFile = new File(
++                                    new StringBuilder(basePath).append(RenderConstans.SIGNTURE_FILE).append(RenderConstans.SLASH).append(productCode).append(RenderConstans.SLASH).append(code).append(RenderConstans.POINT).append(RenderConstans.JPG).toString()
++                            );
++                            if (!sourceFile.exists()) {
++                                throw new IllegalStateException("绣字源图片不存在:" + sourceFile.toString());
++                            }
++                            outJson.put(RenderConstans.URL, FileUtils.formatImageUrl(SigntureUtils.signture(sourceFile, imageFile, text, Color.decode(color), fontStyle)));
++                        } else {
++                            throw new IllegalStateException("绣字参数不全");
++                        }
+                     }
+-                    outJson.put(RenderConstans.URL, FileUtils.formatImageUrl(SigntureUtils.signture(sourceFile, imageFile, text, Color.decode(color), fontStyle)));
+-                } else {
+-                    throw new IllegalStateException("绣字参数不全");
+                 }
+             }
+         } catch (Exception e) {
+diff --git a/src/main/java/com/dingjust/utils/PrintingUtils.java b/src/main/java/com/dingjust/utils/PrintingUtils.java
+index 7787cbd..7331674 100644
+--- a/src/main/java/com/dingjust/utils/PrintingUtils.java
++++ b/src/main/java/com/dingjust/utils/PrintingUtils.java
+@@ -34,7 +34,11 @@ public class PrintingUtils {
+                 .append(RenderConstans.PRINTING_FILE).append(RenderConstans.SLASH).append(RenderConstans.TARGET).append(imageName).append(RenderConstans.MINUS)
+                 .append(pritingName).append(RenderConstans.POINT).append(RenderConstans.PNG).toString());
+         if (!outFile.exists()) {
+-            merge(imageFile, printingFile, 0.5, 0.4, 0.3, outFile);
++            synchronized (outFile.getAbsolutePath().intern()) {
++                if (!outFile.exists()) {
++                    merge(imageFile, printingFile, 0.5, 0.4, 0.3, outFile);
++                }
++            }
+         }
+         return outFile;
+     }
