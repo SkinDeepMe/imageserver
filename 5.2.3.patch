@@ -1,0 +1,77 @@
+diff --git a/src/main/java/com/dingjust/controllers/RenderController.java b/src/main/java/com/dingjust/controllers/RenderController.java
+index e5437b7..bce42a8 100644
+--- a/src/main/java/com/dingjust/controllers/RenderController.java
++++ b/src/main/java/com/dingjust/controllers/RenderController.java
+@@ -25,6 +25,8 @@ import java.io.FileOutputStream;
+ import java.io.IOException;
+ import java.util.*;
+ import java.util.List;
++import java.util.concurrent.ConcurrentHashMap;
++import java.util.concurrent.locks.ReentrantLock;
+ 
+ /**
+  * Created by KQN on 2018/12/11.
+@@ -32,6 +34,8 @@ import java.util.List;
+ @Path(RenderConstans.SLASH + RenderConstans.RENDER)
+ public class RenderController {
+ 
++    private static final ConcurrentHashMap<String, ReentrantLock> renderLockMap = new ConcurrentHashMap<>();
++
+     @GET
+     public String check() {
+         return RenderConstans.IMAGES_ERVER;
+@@ -50,31 +54,40 @@ public class RenderController {
+         JSONObject outJson = new JSONObject();
+         int render = RenderConstans.STATUS_200;
+         String imgUrl = "";
++        ReentrantLock lock = null;
+         try {
+             String productCode = inJson.getString(RenderConstans.CODE);
+             String view = inJson.getString(RenderConstans.VIEW);
+             List<DrapeData> parts = FileUtils.readParts(inJson);
+-            //检查烫印
+             DrapeData printingData = checkPrinting(parts);
+             File imageFile = FileUtils.getMD5Image(productCode, view, parts, scale);
+-            if (imageFile.exists()) {//已经渲染过
++            if (imageFile.exists()) {
+                 imgUrl = FileUtils.formatImageUrl(imageFile);
+-            } else {//未渲染
+-                //测试
++            } else {
+                 outJson.put(RenderConstans.IMAGE, imageFile.toURI().toString());
+-                //判断比例
+-                if (scale == 1) {
+-                    imgUrl = FileUtils.formatImageUrl(ImageUtils.mergeImage(DrapeUtils.renderAll(FileUtils.createDrapeData(productCode, view, parts)), imageFile));
+-                } else {
+-                    File renderedImageFile = FileUtils.getMD5Image(productCode, view, parts, 1.0);
+-                    if (renderedImageFile.exists()) {//原图已渲染
+-                        imgUrl = FileUtils.formatImageUrl(ImageUtils.compressImage(renderedImageFile, imageFile, scale));
+-                    } else {//原图未渲染
+-                        imgUrl = FileUtils.formatImageUrl(ImageUtils.compressImage(ImageUtils.mergeImage(DrapeUtils.renderAll(FileUtils.createDrapeData(productCode, view, parts)), renderedImageFile), imageFile, scale));
++                String lockKey = imageFile.getAbsolutePath();
++                lock = renderLockMap.computeIfAbsent(lockKey, k -> new ReentrantLock());
++                lock.lock();
++                try {
++                    if (imageFile.exists()) {
++                        imgUrl = FileUtils.formatImageUrl(imageFile);
++                    } else {
++                        if (scale == 1) {
++                            imgUrl = FileUtils.formatImageUrl(ImageUtils.mergeImage(DrapeUtils.renderAll(FileUtils.createDrapeData(productCode, view, parts)), imageFile));
++                        } else {
++                            File renderedImageFile = FileUtils.getMD5Image(productCode, view, parts, 1.0);
++                            if (renderedImageFile.exists()) {
++                                imgUrl = FileUtils.formatImageUrl(ImageUtils.compressImage(renderedImageFile, imageFile, scale));
++                            } else {
++                                imgUrl = FileUtils.formatImageUrl(ImageUtils.compressImage(ImageUtils.mergeImage(DrapeUtils.renderAll(FileUtils.createDrapeData(productCode, view, parts)), renderedImageFile), imageFile, scale));
++                            }
++                        }
+                     }
++                } finally {
++                    lock.unlock();
++                    renderLockMap.remove(lockKey, lock);
+                 }
+             }
+-            //渲染烫印
+             if (null != printingData && imageFile.exists()) {
+                 imgUrl = FileUtils.formatImageUrl(PrintingUtils.printing(imgUrl, imageFile, printingData));
+             }
