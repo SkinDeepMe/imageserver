@@ -1,0 +1,89 @@
+diff --git a/pom.xml b/pom.xml
+index 754eefe..bfd0532 100644
+--- a/pom.xml
++++ b/pom.xml
+@@ -17,6 +17,26 @@
+                     <target>1.8</target>
+                 </configuration>
+             </plugin>
++            <!-- JaCoCo Plugin -->
++            <plugin>
++                <groupId>org.jacoco</groupId>
++                <artifactId>jacoco-maven-plugin</artifactId>
++                <version>0.8.7</version>
++                <executions>
++                    <execution>
++                        <goals>
++                            <goal>prepare-agent</goal>
++                        </goals>
++                    </execution>
++                    <execution>
++                        <id>report</id>
++                        <phase>test</phase>
++                        <goals>
++                            <goal>report</goal>
++                        </goals>
++                    </execution>
++                </executions>
++            </plugin>
+         </plugins>
+     </build>
+     <dependencies>
+@@ -46,5 +66,56 @@
+             <!--<version>2.9</version>-->
+             <!--<scope>provided</scope>-->
+         <!--</dependency>-->
++        <!-- JUnit 4 -->
++        <dependency>
++            <groupId>junit</groupId>
++            <artifactId>junit</artifactId>
++            <version>4.13.2</version>
++            <scope>test</scope>
++        </dependency>
++        <!-- Mockito -->
++        <dependency>
++            <groupId>org.mockito</groupId>
++            <artifactId>mockito-core</artifactId>
++            <version>3.12.4</version>
++            <scope>test</scope>
++        </dependency>
++        <!-- JaCoCo for code coverage -->
++        <dependency>
++            <groupId>org.jacoco</groupId>
++            <artifactId>jacoco-maven-plugin</artifactId>
++            <version>0.8.7</version>
++        </dependency>
++        <!-- Commons Collections -->
++        <dependency>
++            <groupId>org.apache.commons</groupId>
++            <artifactId>commons-collections4</artifactId>
++            <version>4.4</version>
++        </dependency>
++        <!-- Commons Codec -->
++        <dependency>
++            <groupId>commons-codec</groupId>
++            <artifactId>commons-codec</artifactId>
++            <version>1.15</version>
++        </dependency>
++        <!-- Commons FileUpload -->
++        <dependency>
++            <groupId>commons-fileupload</groupId>
++            <artifactId>commons-fileupload</artifactId>
++            <version>1.4</version>
++        </dependency>
++        <!-- Commons Lang -->
++        <dependency>
++            <groupId>org.apache.commons</groupId>
++            <artifactId>commons-lang3</artifactId>
++            <version>3.12.0</version>
++        </dependency>
++        <!-- JSON-lib -->
++        <dependency>
++            <groupId>net.sf.json-lib</groupId>
++            <artifactId>json-lib</artifactId>
++            <version>2.4</version>
++            <classifier>jdk15</classifier>
++        </dependency>
+     </dependencies>
+ </project>
+\ No newline at end of file
